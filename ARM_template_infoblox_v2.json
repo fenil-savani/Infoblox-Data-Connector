@@ -1,0 +1,2622 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "WorkspaceID": {
+            "type": "string",
+            "minLength": 1,
+            "metadata": {
+                "description": "Enter Workspace ID of Log Analytics workspace"
+            }
+        },
+        "WorkspaceKey": {
+            "type": "securestring",
+            "minLength": 1,
+            "metadata": {
+                "description": "Enter Workspace Key of Log Analytics workspace"
+            }
+        },
+        "InfobloxBaseURL": {
+            "defaultValue": "https://csp.infoblox.com",
+            "type": "string",
+            "metadata": {
+                "description": "Enter Base URL of Infoblox API e.g. https://csp.infoblox.com)"
+            }
+        },
+        "InfobloxAPIToken": {
+            "type": "string",
+            "minLength": 1,
+            "metadata": {
+                "description": "Enter Infoblox API Token for authentication"
+            }
+        },
+        "AzureClientID": {
+            "type": "string",
+            "minLength": 1,
+            "metadata": {
+                "description": "Enter Azure Client Id that you have created during app registration"
+            }
+        },
+        "AzureClientSecret": {
+            "type": "securestring",
+            "minLength": 1,
+            "metadata": {
+                "description": "Enter Azure Client Secret that you have created during creating the client secret"
+            }
+        },
+        "AzureTenantID": {
+            "type": "string",
+            "minLength": 1,
+            "metadata": {
+                "description": "Enter Azure Tenant Id of your Azure Active Directory"
+            }
+        },
+        "LogLevel": {
+            "type": "string",
+            "metadata": {
+                "description": "Please add log level or log severity value. By default it is set to INFO"
+            },
+            "allowedValues": [
+                "Debug",
+                "Info",
+                "Error",
+                "Warning"
+            ],
+            "defaultValue": "Info"
+        }
+    },
+    "variables": {
+        "InfobloxToStorageHistHost": "[concat('i2shishost', uniqueString(resourceGroup().id))]",
+        "InfobloxToStorageHistIP": "[concat('i2shisip', uniqueString(resourceGroup().id))]",
+        "InfobloxToStorageHistURL": "[concat('i2shisurl', uniqueString(resourceGroup().id))]",
+        "InfobloxToStorageHistHash": "[concat('i2shishash', uniqueString(resourceGroup().id))]",
+        "InfobloxToStorageHistEmail": "[concat('i2shisemail', uniqueString(resourceGroup().id))]",
+        "InfobloxToStorageCurrHost": "[concat('i2scurhost', uniqueString(resourceGroup().id))]",
+        "InfobloxToStorageCurrIP": "[concat('i2scurip', uniqueString(resourceGroup().id))]",
+        "InfobloxToStorageCurrURL": "[concat('i2scururl', uniqueString(resourceGroup().id))]",
+        "InfobloxToStorageCurrHash": "[concat('i2scurhash', uniqueString(resourceGroup().id))]",
+        "InfobloxToStorageCurrEmail": "[concat('i2scuremail', uniqueString(resourceGroup().id))]",
+        "InfobloxDDIToSentinel": "[concat('infoddi2s', uniqueString(resourceGroup().id))]",
+        "ParseJSONHist": "[concat('parsejsonht', uniqueString(resourceGroup().id))]",
+        "ParseJSONCurr": "[concat('parsejsoncr', uniqueString(resourceGroup().id))]",
+        "S2IndicatorHist": "[concat('s2thindht', uniqueString(resourceGroup().id))]",
+        "S2IndicatorCurr": "[concat('s2thindcr', uniqueString(resourceGroup().id))]",
+        "Historical_Schedule": "0 */10 * * * *",
+        "Current_Data_Schedule": "0 0 */1 * * *",
+        "Connection_String": "",
+        "StorageSuffix": "[environment().suffixes.storage]",
+        "LogAnaltyicsUri": "[replace(environment().portal, 'https://portal', concat('https://', toLower(parameters('WorkspaceID')), '.ods.opinsights'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageHistHost')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageHistHost')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageHistHost')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHost'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHost'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHost'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistHost')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageHistHost')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistHost')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageHistHost'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageHistHost')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageHistHost'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageHistHost')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageHistHost')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageHistHost'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHost')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Historical_Schedule": "[variables('Historical_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Historical%20Data%20Connector/InfobloxHistoricalToAzureStorageHost.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHost'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistHost'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHost'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHost'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistHost'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHost'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHost'), '/default/', variables('InfobloxToStorageHistHost'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageHistHost'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHost'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageHistIP')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageHistIP')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageHistIP')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistIP'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistIP'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistIP'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistIP')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageHistIP')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistIP')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageHistIP'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageHistIP')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageHistIP'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageHistIP')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageHistIP')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageHistIP'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistIP')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Historical_Schedule": "[variables('Historical_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Historical%20Data%20Connector/InfobloxHistoricalToAzureStorageIP.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistIP'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistIP'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistIP'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistIP'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistIP'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistIP'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistIP'), '/default/', variables('InfobloxToStorageHistIP'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageHistIP'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistIP'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageHistURL')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageHistURL')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageHistURL')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistURL'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistURL'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistURL'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistURL')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageHistURL')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistURL')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageHistURL'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageHistURL')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageHistURL'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageHistURL')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageHistURL')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageHistURL'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistURL')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Historical_Schedule": "[variables('Historical_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Historical%20Data%20Connector/InfobloxHistoricalToAzureStorageURL.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistURL'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistURL'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistURL'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistURL'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistURL'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistURL'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistURL'), '/default/', variables('InfobloxToStorageHistURL'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageHistURL'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistURL'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageHistHash')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageHistHash')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageHistHash')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHash'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHash'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHash'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistHash')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageHistHash')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistHash')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageHistHash'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageHistHash')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageHistHash'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageHistHash')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageHistHash')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageHistHash'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHash')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Historical_Schedule": "[variables('Historical_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Historical%20Data%20Connector/InfobloxHistoricalToAzureStorageHash.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHash'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistHash'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHash'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHash'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistHash'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHash'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistHash'), '/default/', variables('InfobloxToStorageHistHash'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageHistHash'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistHash'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageHistEmail')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageHistEmail')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageHistEmail')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistEmail'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistEmail'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistEmail'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistEmail')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageHistEmail')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageHistEmail')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageHistEmail'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageHistEmail')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageHistEmail'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageHistEmail')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageHistEmail')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageHistEmail'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistEmail')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Historical_Schedule": "[variables('Historical_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Historical%20Data%20Connector/InfobloxHistoricalToAzureStorageEmail.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistEmail'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistEmail'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistEmail'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistEmail'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageHistEmail'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistEmail'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageHistEmail'), '/default/', variables('InfobloxToStorageHistEmail'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageHistEmail'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageHistEmail'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageCurrHost')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageCurrHost')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageCurrHost')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHost'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHost'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHost'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrHost')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageCurrHost')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrHost')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageCurrHost'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageCurrHost')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageCurrHost'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageCurrHost')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageCurrHost')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageCurrHost'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHost')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Current_Data_Schedule": "[variables('Current_Data_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Current%20Data%20Connector/InfobloxCurrentToAzureStorageHost.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHost'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrHost'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHost'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHost'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrHost'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHost'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHost'), '/default/', variables('InfobloxToStorageCurrHost'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageCurrHost'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHost'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageCurrIP')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageCurrIP')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageCurrIP')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrIP'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrIP'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrIP'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrIP')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageCurrIP')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrIP')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageCurrIP'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageCurrIP')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageCurrIP'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageCurrIP')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageCurrIP')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageCurrIP'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrIP')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Current_Data_Schedule": "[variables('Current_Data_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Current%20Data%20Connector/InfobloxCurrentToAzureStorageIP.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrIP'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrIP'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrIP'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrIP'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrIP'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrIP'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrIP'), '/default/', variables('InfobloxToStorageCurrIP'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageCurrIP'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrIP'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageCurrURL')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageCurrURL')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageCurrURL')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrURL'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrURL'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrURL'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrURL')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageCurrURL')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrURL')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageCurrURL'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageCurrURL')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageCurrURL'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageCurrURL')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageCurrURL')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageCurrURL'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrURL')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Current_Data_Schedule": "[variables('Current_Data_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Current%20Data%20Connector/InfobloxCurrentToAzureStorageURL.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrURL'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrURL'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrURL'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrURL'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrURL'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrURL'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrURL'), '/default/', variables('InfobloxToStorageCurrURL'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageCurrURL'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrURL'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageCurrHash')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageCurrHash')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageCurrHash')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHash'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHash'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHash'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrHash')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageCurrHash')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrHash')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageCurrHash'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageCurrHash')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageCurrHash'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageCurrHash')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageCurrHash')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageCurrHash'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHash')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Current_Data_Schedule": "[variables('Current_Data_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Current%20Data%20Connector/InfobloxCurrentToAzureStorageHash.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHash'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrHash'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHash'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHash'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrHash'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHash'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrHash'), '/default/', variables('InfobloxToStorageCurrHash'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageCurrHash'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrHash'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxToStorageCurrEmail')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxToStorageCurrEmail')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxToStorageCurrEmail')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrEmail'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrEmail'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrEmail'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrEmail')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxToStorageCurrEmail')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxToStorageCurrEmail')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxToStorageCurrEmail'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxToStorageCurrEmail')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxToStorageCurrEmail'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxToStorageCurrEmail')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxToStorageCurrEmail')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxToStorageCurrEmail'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrEmail')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "Current_Data_Schedule": "[variables('Current_Data_Schedule')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/Current%20Data%20Connector/InfobloxCurrentToAzureStorageEmail.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrEmail'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrEmail'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrEmail'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrEmail'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxToStorageCurrEmail'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrEmail'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxToStorageCurrEmail'), '/default/', variables('InfobloxToStorageCurrEmail'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxToStorageCurrEmail'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxToStorageCurrEmail'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('InfobloxDDIToSentinel')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('InfobloxDDIToSentinel')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('InfobloxDDIToSentinel')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxDDIToSentinel'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxDDIToSentinel'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxDDIToSentinel'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxDDIToSentinel')))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('InfobloxDDIToSentinel')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('InfobloxDDIToSentinel')))]",
+                "[resourceId('Microsoft.Insights/components', variables('InfobloxDDIToSentinel'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('InfobloxDDIToSentinel')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('InfobloxDDIToSentinel'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('InfobloxDDIToSentinel')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('InfobloxDDIToSentinel')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('InfobloxDDIToSentinel'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxDDIToSentinel')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/deep-thakkar-1112002/arm-deployment/raw/main/CofenseIntelligenceDataConnector.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxDDIToSentinel'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxDDIToSentinel'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxDDIToSentinel'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxDDIToSentinel'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('InfobloxDDIToSentinel'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxDDIToSentinel'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('InfobloxDDIToSentinel'), '/default/', variables('InfobloxDDIToSentinel'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('InfobloxDDIToSentinel'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('InfobloxDDIToSentinel'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('ParseJSONHist')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('ParseJSONHist')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('ParseJSONHist')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONHist'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONHist'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONHist'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONHist'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('ParseJSONHist')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONHist'))]",
+                "[resourceId('Microsoft.Insights/components', variables('ParseJSONHist'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('ParseJSONHist')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('ParseJSONHist'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('ParseJSONHist')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('ParseJSONHist')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('ParseJSONHist'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONHist')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/deep-thakkar-1112002/arm-deployment/raw/main/CofenseIntelligenceDataConnector.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONHist'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('ParseJSONHist'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONHist'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONHist'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('ParseJSONHist'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONHist'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONHist'), '/default/', variables('ParseJSONHist'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('ParseJSONHist'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONHist'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('ParseJSONCurr')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('ParseJSONCurr')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('ParseJSONCurr')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONCurr'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONCurr'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONCurr'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONCurr'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('ParseJSONCurr')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONCurr'))]",
+                "[resourceId('Microsoft.Insights/components', variables('ParseJSONCurr'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('ParseJSONCurr')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('ParseJSONCurr'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('ParseJSONCurr')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('ParseJSONCurr')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('ParseJSONCurr'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONCurr')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/deep-thakkar-1112002/arm-deployment/raw/main/CofenseIntelligenceDataConnector.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONCurr'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('ParseJSONCurr'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONCurr'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONCurr'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('ParseJSONCurr'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONCurr'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('ParseJSONCurr'), '/default/', variables('ParseJSONCurr'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('ParseJSONCurr'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('ParseJSONCurr'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('S2IndicatorHist')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('S2IndicatorHist')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('S2IndicatorHist')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorHist'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorHist'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorHist'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorHist'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('S2IndicatorHist')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorHist'))]",
+                "[resourceId('Microsoft.Insights/components', variables('S2IndicatorHist'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('S2IndicatorHist')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('S2IndicatorHist'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('S2IndicatorHist')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('S2IndicatorHist')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('S2IndicatorHist'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorHist')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/deep-thakkar-1112002/arm-deployment/raw/main/CofenseIntelligenceDataConnector.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorHist'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('S2IndicatorHist'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorHist'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorHist'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('S2IndicatorHist'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorHist'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorHist'), '/default/', variables('S2IndicatorHist'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('S2IndicatorHist'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorHist'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('S2IndicatorCurr')]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('S2IndicatorCurr')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('S2IndicatorCurr')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorCurr'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorCurr'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorCurr'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorCurr'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('S2IndicatorCurr')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorCurr'))]",
+                "[resourceId('Microsoft.Insights/components', variables('S2IndicatorCurr'))]"
+            ],
+            "kind": "functionapp,linux",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[variables('S2IndicatorCurr')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": true,
+                "alwaysOn": true,
+                "reserved": true,
+                "siteConfig": {
+                    "linuxFxVersion": "python|3.8"
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('S2IndicatorCurr'))]"
+                    ],
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('S2IndicatorCurr')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('S2IndicatorCurr')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('S2IndicatorCurr'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorCurr')), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
+                        "WorkspaceID": "[parameters('WorkspaceID')]",
+                        "WorkspaceKey": "[parameters('WorkspaceKey')]",
+                        "InfobloxBaseURL": "[parameters('InfobloxBaseURL')]",
+                        "API_token": "[parameters('InfobloxAPIToken')]",
+                        "AzureClientID": "[parameters('AzureClientID')]",
+                        "AzureClientSecret": "[parameters('AzureClientSecret')]",
+                        "AzureTenantID": "[parameters('AzureTenantID')]",
+                        "LogLevel": "[parameters('LogLevel')]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/deep-thakkar-1112002/arm-deployment/raw/main/CofenseIntelligenceDataConnector.zip"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorCurr'), '/default/azure-webjobs-hosts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('S2IndicatorCurr'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorCurr'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorCurr'), '/default/azure-webjobs-secrets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('S2IndicatorCurr'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorCurr'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('S2IndicatorCurr'), '/default/', variables('S2IndicatorCurr'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('S2IndicatorCurr'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('S2IndicatorCurr'))]"
+            ],
+            "properties": {
+                "shareQuota": 5120
+            }
+        }
+    ]
+}
