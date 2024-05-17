@@ -237,7 +237,7 @@
                         "Connection_String": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('HistCommon_storage')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('HistCommon_storage'))), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
                         "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
                         "API_token": "[parameters('APIToken')]",
-                        "Historical_Schedule": "0 */10 * * * *",
+                        "Historical_Schedule": "0 */15 * * * *",
                         "ThreatType": "[variables('function_names_Historical')[copyIndex('sitescopy')]]",
                         "TIME_INTERVAL": "-3",
                         "LogLevel": "[parameters('LogLevel')]",
@@ -639,7 +639,7 @@
                         "Connection_String": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('Storage_Strings')[copyIndex('sitescopy')]),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('Storage_Strings')[copyIndex('sitescopy')])), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
                         "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
                         "API_token": "[parameters('APIToken')]",
-                        "Schedule": "0 */10 * * * *",
+                        "Schedule": "0 */15 * * * *",
                         "LogLevel": "[parameters('LogLevel')]",
                         "File_Share_Name_For_Data": "infoblox-data-files",
                         "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/InfoBloxParseRawIndicators.zip"
