@@ -244,7 +244,7 @@
                         "File_Share_Name": "infoblox-checkpoints",
                         "File_Share_Name_For_Data": "infoblox-data-files",
                         "Checkpoint_File_Name": "infoblox",
-                        "WEBSITE_RUN_FROM_PACKAGE": "https://aka.ms/sentinel-Historical-functionapp"
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/InfobloxHistoricalToAzureStorage.zip"
                     }
                 }
             ],
@@ -445,7 +445,7 @@
                         "File_Share_Name": "infoblox-checkpoint",
                         "File_Share_Name_For_Data": "infoblox-data-files",
                         "Checkpoint_File_Name": "infoblox",
-                        "WEBSITE_RUN_FROM_PACKAGE": "https://aka.ms/sentinel-Current-functionapp"
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/InfobloxCurrentToAzureStorage.zip"
                     }
                 }
             ],
@@ -642,7 +642,7 @@
                         "Schedule": "0 */10 * * * *",
                         "LogLevel": "[parameters('LogLevel')]",
                         "File_Share_Name_For_Data": "infoblox-data-files",
-                        "WEBSITE_RUN_FROM_PACKAGE": "https://aka.ms/sentinel-Json_parse-functionapp"
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/InfoBloxParseRawIndicators.zip"
                     }
                 }
             ],
@@ -839,11 +839,11 @@
                         "Azure_Client_Secret": "[parameters('Azure_Client_Secret')]",
                         "Azure_Tenant_Id": "[parameters('Azure_Tenant_Id')]",
                         "File_Share_Name_For_Data": "infoblox-data-files",
-                        "Workspace_Key": "[parameters('WorkspaceID')]",
-                        "Workspace_Id": "[parameters('WorkspaceKey')]",
+                        "Workspace_Key": "[parameters('WorkspaceKey')]",
+                        "Workspace_Id": "[parameters('WorkspaceID')]",
                         "Schedule": "0 */15 * * * *",
                         "LogLevel": "[parameters('LogLevel')]",
-                        "WEBSITE_RUN_FROM_PACKAGE": "https://aka.ms/sentinel-Indicators-functionapp"
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/AzureStorageToIndicators.zip"
                     }
                 }
             ],
