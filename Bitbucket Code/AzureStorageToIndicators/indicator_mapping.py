@@ -126,7 +126,7 @@ class Mapping:
                 )
             )
             chunk_size = consts.CHUNK_SIZE
-            chunked_data = [text[index: index + chunk_size] for index in range(start_index, len(text), chunk_size)]
+            chunked_data = [text[index : index + chunk_size] for index in range(start_index, len(text), chunk_size)]
             applogger.info(
                 consts.LOG_FORMAT.format(
                     consts.LOGS_STARTS_WITH,
