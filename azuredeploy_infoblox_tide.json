@@ -66,13 +66,13 @@
         },
         "Confidence": {
             "type": "int",
-            "defaultValue": 50,
+            "defaultValue": 0,
             "minValue": 0,
             "maxValue": 100
         },
         "ThreatLevel": {
             "type": "int",
-            "defaultValue": 50,
+            "defaultValue": 0,
             "minValue": 0,
             "maxValue": 100
         }
@@ -259,7 +259,7 @@
                         "BaseUrl": "[parameters('InfobloxBaseURL')]",
                         "Historical_Schedule": "0 */15 * * * *",
                         "ThreatType": "[variables('function_names_Historical')[copyIndex('sitescopy')]]",
-                        "TIME_INTERVAL": "-3",
+                        "HISTORICAL_TIME_INTERVAL": "-3",
                         "LogLevel": "[parameters('LogLevel')]",
                         "File_Share_Name": "infoblox-checkpoints",
                         "File_Share_Name_For_Data": "infoblox-data-files",
