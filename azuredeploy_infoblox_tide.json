@@ -2,21 +2,21 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "Azure_Tenant_Id": {
+        "AzureTenantId": {
             "minLength": 1,
             "type": "String",
             "metadata": {
                 "description": "Enter Azure Tenant ID."
             }
         },
-        "Azure_Client_Id": {
+        "AzureClientId": {
             "minLength": 1,
             "type": "String",
             "metadata": {
                 "description": "Enter Azure Client ID."
             }
         },
-        "Azure_Client_Secret": {
+        "AzureClientSecret": {
             "minLength": 1,
             "type": "String",
             "metadata": {
@@ -257,7 +257,7 @@
                         "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
                         "API_token": "[parameters('InfobloxAPIToken')]",
                         "BaseUrl": "[parameters('InfobloxBaseURL')]",
-                        "Historical_Schedule": "0 */15 * * * *",
+                        "Schedule": "0 */15 * * * *",
                         "ThreatType": "[variables('function_names_Historical')[copyIndex('sitescopy')]]",
                         "HISTORICAL_TIME_INTERVAL": "-3",
                         "LogLevel": "[parameters('LogLevel')]",
@@ -460,8 +460,8 @@
                         "ThreatType": "[variables('function_names_Current')[copyIndex('sitescopy')]]",
                         "API_token": "[parameters('InfobloxAPIToken')]",
                         "BaseUrl": "[parameters('InfobloxBaseURL')]",
-                        "Current_Data_Schedule": "0 0 */1 * * *",
-                        "TIME_INTERVAL": "1",
+                        "Schedule": "0 0 */1 * * *",
+                        "CURRENT_TIME_INTERVAL": "1",
                         "LogLevel": "[parameters('LogLevel')]",
                         "File_Share_Name": "infoblox-checkpoint",
                         "File_Share_Name_For_Data": "infoblox-data-files",
@@ -855,9 +855,9 @@
                         "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('IndicatorNameArray')[copyIndex()].Indicators),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('IndicatorNameArray')[copyIndex()].Indicators)), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
                         "logAnalyticsUri": "[variables('LogAnaltyicsUri')]",
                         "Connection_String": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('Storage_Strings')[copyIndex('sitescopy')]),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('Storage_Strings')[copyIndex('sitescopy')])), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
-                        "Azure_Client_Id": "[parameters('Azure_Client_Id')]",
-                        "Azure_Client_Secret": "[parameters('Azure_Client_Secret')]",
-                        "Azure_Tenant_Id": "[parameters('Azure_Tenant_Id')]",
+                        "Azure_Client_Id": "[parameters('AzureClientId')]",
+                        "Azure_Client_Secret": "[parameters('AzureClientSecret')]",
+                        "Azure_Tenant_Id": "[parameters('AzureTenantId')]",
                         "File_Share_Name_For_Data": "infoblox-data-files",
                         "Workspace_Key": "[parameters('WorkspaceKey')]",
                         "Workspace_Id": "[parameters('WorkspaceID')]",
