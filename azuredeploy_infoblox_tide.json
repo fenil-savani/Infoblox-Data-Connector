@@ -2,19 +2,6 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "LogLevel": {
-            "defaultValue": "Info",
-            "allowedValues": [
-                "Debug",
-                "Info",
-                "Error",
-                "Warning"
-            ],
-            "type": "String",
-            "metadata": {
-                "description": "Please add log level or log severity value. By default it is set to INFO"
-            }
-        },
         "Azure_Tenant_Id": {
             "minLength": 1,
             "type": "String",
@@ -63,6 +50,31 @@
             "metadata": {
                 "description": "Enter Workspace Key of Log Analytics workspace."
             }
+        },
+        "LogLevel": {
+            "defaultValue": "Info",
+            "allowedValues": [
+                "Debug",
+                "Info",
+                "Error",
+                "Warning"
+            ],
+            "type": "String",
+            "metadata": {
+                "description": "Please add log level or log severity value. By default it is set to INFO"
+            }
+        },
+        "Confidence": {
+            "type": "int",
+            "defaultValue": 50,
+            "minValue": 0,
+            "maxValue": 100
+        },
+        "ThreatLevel": {
+            "type": "int",
+            "defaultValue": 50,
+            "minValue": 0,
+            "maxValue": 100
         }
     },
     "variables": {
@@ -851,6 +863,8 @@
                         "Workspace_Id": "[parameters('WorkspaceID')]",
                         "Schedule": "0 */15 * * * *",
                         "LogLevel": "[parameters('LogLevel')]",
+                        "Confidence_Threshold": "[parameters('Confidence')]",
+                        "Threat_Level": "[parameters('ThreatLevel')]",
                         "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/main/AzureStorageToIndicators.zip"
                     }
                 }
