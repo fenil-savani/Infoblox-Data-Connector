@@ -377,6 +377,7 @@ class ParseJsonFiles:
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
+
             file_prefix = "_".join(threat_iocs_file[0].split("_")[:-1])
             file_prefix = file_prefix.replace("raw", "parse")
             if len(threat_iocs_file) > 1:
@@ -464,7 +465,7 @@ class ParseJsonFiles:
             )
 
             list_of_files = self.utils_obj.list_file_names_in_file_share(self.parent_dir, consts.FILE_NAME_PREFIX)
-            if len(list_of_files) == 0:
+            if list_of_files or len(list_of_files) == 0:
                 applogger.info(
                     consts.LOG_FORMAT.format(
                         consts.LOGS_STARTS_WITH,
