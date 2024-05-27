@@ -26,6 +26,7 @@ class InfobloxToAzureStorage(Utils):
                 {"Api_Token": consts.API_TOKEN},
                 {"File_Share_Name": consts.FILE_SHARE_NAME},
                 {"File_Name": consts.FILE_NAME},
+                {"Base_Url": consts.BASE_URL}
             ]
         )
         self.authenticate_infoblox_api()
