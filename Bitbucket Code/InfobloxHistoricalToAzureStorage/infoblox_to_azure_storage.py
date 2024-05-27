@@ -3,12 +3,14 @@
 import inspect
 import datetime
 import requests
+import json
 from azure.storage.fileshare import ShareDirectoryClient
 from ..SharedCode import consts
 from ..SharedCode.infoblox_exception import InfobloxException
 from ..SharedCode.logger import applogger
 from ..SharedCode.state_manager import StateManager
 from ..SharedCode.utils import Utils
+from ..SharedCode.sentinel import post_data
 
 
 class InfobloxToAzureStorage(Utils):
@@ -132,7 +134,7 @@ class InfobloxToAzureStorage(Utils):
                 if list_of_file_with_prefix:
                     self.delete_files_from_azure_storage(list_of_file_with_prefix, self.parent_file)
                 if status_of_last_from_date > 2:
-                    self.store_failed_range_in_state_manager(from_date, to_date)
+                    self.store_failed_range(from_date, to_date)
 
                     to_date = from_date
                     from_date = self.add_xh_to_iso_time_string(to_date, consts.HISTORICAL_TIME_INTERVAL)
@@ -591,10 +593,8 @@ class InfobloxToAzureStorage(Utils):
             )
             raise InfobloxException()
 
-    def store_failed_range_in_state_manager(self, from_date, to_date):
-        """Store range of date which are failed to fetch.
-
-        Store range in list of dictionary e.g. - [{from_date:"",to_date:""}]
+    def store_failed_range(self, from_date, to_date):
+        """Store range of date which are failed to fetch in table.
 
         Args:
             from_date (str): from date of range
@@ -605,28 +605,20 @@ class InfobloxToAzureStorage(Utils):
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
-            failed_range_state_manager = StateManager(
-                consts.CONN_STRING,
-                "failed_range_list_checkpoint_{}".format(consts.TYPE),
-                consts.FILE_SHARE_NAME,
-            )
-            failed_range_list = self.get_checkpoint_data(failed_range_state_manager, load_flag=True)
             range_to_append = {
-                "from_date": from_date,
-                "to_date": to_date,
+                "From Date": from_date,
+                "To Date": to_date,
+                "Threat Type": self.ioc_type,
             }
-            if failed_range_list is None:
-                failed_range_list = []
-            failed_range_list.append(range_to_append)
             applogger.info(
                 self.log_format.format(
                     consts.LOGS_STARTS_WITH,
                     __method_name,
                     self.azure_function_name,
-                    "Total failed range = {}".format(len(failed_range_list)),
+                    "Ingesting failed range = {}".format(range_to_append),
                 )
             )
-            self.post_checkpoint_data(failed_range_state_manager, failed_range_list, dump_flag=True)
+            post_data(json.dumps(range_to_append), "Failed_Range_To_Ingest")
         except Exception as err:
             applogger.error(
                 self.log_format.format(
