@@ -26,7 +26,7 @@ class InfobloxToAzureStorage(Utils):
                 {"Api_Token": consts.API_TOKEN},
                 {"File_Share_Name": consts.FILE_SHARE_NAME},
                 {"File_Name": consts.FILE_NAME},
-                {"Base_Url": consts.BASE_URL}
+                {"Base_Url": consts.BASE_URL},
             ]
         )
         self.authenticate_infoblox_api()
@@ -65,13 +65,6 @@ class InfobloxToAzureStorage(Utils):
 
         Args:
             date_state_manager_obj: State management object.
-
-        Returns:
-            None
-
-        Raises:
-            InfobloxException: When an Infoblox related exception occurs.
-            Exception: When any other exception occurs.
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -88,7 +81,7 @@ class InfobloxToAzureStorage(Utils):
             if checkpoint_data:
                 from_date = checkpoint_data.get("to_date", None)
 
-            if (from_date is None) or (from_date == ""):
+            if not from_date:
                 # !This means function app is running first time
                 to_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                 from_date = self.add_xh_to_iso_time_string(to_date, -abs(consts.CURRENT_TIME_INTERVAL))
@@ -228,10 +221,6 @@ class InfobloxToAzureStorage(Utils):
 
         Returns:
             The response object obtained from Infoblox.
-
-        Raises:
-            InfobloxException: When an Infoblox related exception occurs.
-            Exception: When any other exception occurs.
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -281,10 +270,6 @@ class InfobloxToAzureStorage(Utils):
 
         Returns:
             The generated checkpoint file name.
-
-        Raises:
-            InfobloxException: If an Infoblox related exception occurs.
-            Exception: If any other exception happens.
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -320,13 +305,6 @@ class InfobloxToAzureStorage(Utils):
         Args:
             response_obj: The response object to iterate through.
             base_checkpoint_file_name_for_from_and_to_dates: The base name for the checkpoint data file.
-
-        Returns:
-            None
-
-        Raises:
-            InfobloxException: When an Infoblox related exception occurs.
-            Exception: When any other exception occurs.
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -384,13 +362,6 @@ class InfobloxToAzureStorage(Utils):
             response_data: The data to be sent to Azure storage.
             base_checkpoint_file_name_for_from_and_to_dates: The base file name for the checkpoint data.
             index: The index of the data being sent.
-
-        Returns:
-            None
-
-        Raises:
-            InfobloxException: If an Infoblox related exception occurs.
-            Exception: If any other exception occurs.
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -433,9 +404,6 @@ class InfobloxToAzureStorage(Utils):
 
         Returns:
             The response object from the URL request
-
-        Raises:
-            InfobloxException: If the request fails after maximum retries or encounters an exception
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -565,9 +533,6 @@ class InfobloxToAzureStorage(Utils):
 
         Returns:
             The constructed URL.
-
-        Raises:
-            InfobloxException: When an Infoblox related exception occurs.
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -595,9 +560,6 @@ class InfobloxToAzureStorage(Utils):
         Args:
             from_date (str): from date of range
             to_date (str): to date of range
-
-        Returns:
-            None
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:

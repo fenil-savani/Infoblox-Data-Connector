@@ -1,5 +1,4 @@
 """Mapping threat data to the required format for processing."""
-
 import inspect
 from ..SharedCode import consts
 from ..SharedCode.logger import applogger
@@ -57,10 +56,23 @@ class Mapping:
                         "revoked": item.get("up", False),
                         "labels": [
                             item.get("type"),
+                            "TLD : {}".format(item.get("tld", "-")),
                             "Imported : {}".format(item.get("imported")),
                             "Profile : {}".format(item.get("profile")),
                             "Property : {}".format(item.get("property")),
+                            "Dga: {}".format(item.get("dga", "-")),
                             "Threat Level : {}".format(item.get("threat_level")),
+                            "Threat Score : {}".format(item.get("threat_score", "-")),
+                            "Threat Score Rating : {}".format(item.get("threat_score_rating", "-")),
+                            "Threat Score Vector : {}".format(item.get("threat_score_vector", "-")),
+                            "Confidence Score : {}".format(item.get("confidence_score", "-")),
+                            "Confidence Score Rating : {}".format(item.get("confidence_score_rating", "-")),
+                            "Confidence Score Vector : {}".format(item.get("confidence_score_vector", "-")),
+                            "Risk Score : {}".format(item.get("risk_score", "-")),
+                            "Risk Score Rating : {}".format(item.get("risk_score_rating", "-")),
+                            "Risk Score Vector : {}".format(item.get("risk_score_vector", "-")),
+                            "Notes : {}".format(item.get("extended", {}).get("notes", "-")),
+                            "Cyberint Guid : {}".format(item.get("extended", {}).get("cyberint_guid", "-")),
                         ],
                         "confidence": (item.get("confidence", 0)),
                         "description": "Infoblox - {} - {}".format(item.get("type"), item.get("class")),
@@ -111,9 +123,6 @@ class Mapping:
 
         Returns:
             list: A list of chunked data items.
-
-        Raises:
-            InfobloxException: If an error occurs while breaking the data into chunks.
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -126,7 +135,7 @@ class Mapping:
                 )
             )
             chunk_size = consts.CHUNK_SIZE
-            chunked_data = [text[index : index + chunk_size] for index in range(start_index, len(text), chunk_size)]
+            chunked_data = [text[index: index + chunk_size] for index in range(start_index, len(text), chunk_size)]
             applogger.info(
                 consts.LOG_FORMAT.format(
                     consts.LOGS_STARTS_WITH,

@@ -134,12 +134,6 @@ class CreateThreatIndicator(Utils):
             stored_indicator_count: The count of stored indicators.
             state_file_obj: The state file object.
             count_state_obj: The count state object.
-
-        Raises:
-            InfobloxException: Raised in case of errors during the execution.
-
-        Returns:
-            None
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:

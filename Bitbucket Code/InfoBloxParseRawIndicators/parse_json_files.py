@@ -153,9 +153,6 @@ class ParseJsonFiles:
         Args:
             file_name (str): The name of the file.
             data (any): The data to be written to the checkpoint file.
-
-        Returns:
-            None
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -189,9 +186,6 @@ class ParseJsonFiles:
             file_name (str): The name of the file.
             data_file_name (str): The name of the data file.
             index (int): The index to start.
-
-        Returns:
-            None
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:

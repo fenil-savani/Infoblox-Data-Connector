@@ -1,4 +1,4 @@
-"""This module will help to save file to statemanager."""
+"""This module will help to save file to state manager."""
 
 from azure.storage.fileshare import ShareClient
 from azure.storage.fileshare import ShareFileClient
@@ -61,4 +61,7 @@ class StateManager:
 
         This method will delete the file from Azure Storage.
         """
-        self.file_cli.delete_file()
+        try:
+            self.file_cli.delete_file()
+        except ResourceNotFoundError:
+            raise ResourceNotFoundError("File not found to be deleted.")

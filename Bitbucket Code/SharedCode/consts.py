@@ -9,7 +9,7 @@ AZURE_TENANT_ID = os.environ.get("Azure_Tenant_Id", "")
 WORKSPACE_KEY = os.environ.get("Workspace_Key", "")
 WORKSPACE_ID = os.environ.get("Workspace_Id", "")
 
-LOG_LEVEL = os.environ.get("LogLevel")
+LOG_LEVEL = os.environ.get("LogLevel", "INFO")
 
 # *Sentinel Apis
 AZURE_AUTHENTICATION_URL = "https://login.microsoftonline.com/{}/oauth2/v2.0/token"
@@ -62,6 +62,7 @@ FAILED_INDICATOR_FUNCTION_NAME = "FailedThreatIndicators"
 PARSE_RAW_JSON_DATA_FUNCTION_NAME = "InfoBloxParseRawJsonData"
 FILE_NAME_PREFIX = "infoblox_raw"
 ONE_HOUR_EPOCH_VALUE = 3600
+MAX_FILE_AGE_FOR_INDICATORS = 900
 
 # *Log related constants
 LOG_FORMAT = "{}(method = {}) : {} : {}"

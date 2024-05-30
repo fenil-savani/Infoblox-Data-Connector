@@ -5,23 +5,17 @@ import sys
 from . import consts
 
 log_level = consts.LOG_LEVEL
-if log_level is None:
-    log_level = "INFO"
+
+LOG_LEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+}
 
 try:
     applogger = logging.getLogger("azure")
-    log_level = log_level.upper()
-    if log_level == "DEBUG":
-        applogger.setLevel(logging.DEBUG)
-
-    elif log_level == "INFO":
-        applogger.setLevel(logging.INFO)
-
-    elif log_level == "WARNING":
-        applogger.setLevel(logging.WARNING)
-
-    elif log_level == "ERROR":
-        applogger.setLevel(logging.ERROR)
+    applogger.setLevel(LOG_LEVELS.get(log_level.upper(), logging.INFO))
 except Exception:
     applogger.setLevel(logging.INFO)
 finally:

@@ -96,10 +96,6 @@ class Utils:
         Returns:
             The retrieved checkpoint data.
 
-        Raises:
-            InfobloxException: When an Infoblox related exception occurs.
-            Exception: When any other exception occurs.
-
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -154,11 +150,6 @@ class Utils:
             checkpoint_obj (StateManager): The StateManager object to post data to.
             data: The data to be posted.
             dump_flag (bool): A flag indicating whether to dump the data as JSON before posting (default is False).
-
-        Raises:
-            TypeError: When a type error occurs.
-            Exception: When any other exception occurs.
-            InfobloxException: When an Infoblox related exception occurs.
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -268,9 +259,6 @@ class Utils:
             files_list (list) : list of files to be deleted
             parent_dir (ShareDirectory.from_connection_string): Object of ShareDirectory to perform operations
             on file share.
-
-        Returns:
-            None
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -346,7 +334,9 @@ class Utils:
             current_time = int(time.time())
 
             filtered_filenames = [
-                filename for filename in sorted_filenames if ((current_time - self.get_timestamp(filename)) > 900)
+                filename
+                for filename in sorted_filenames
+                if ((current_time - self.get_timestamp(filename)) > consts.MAX_FILE_AGE_FOR_INDICATORS)
             ]
             applogger.info(
                 self.log_format.format(
@@ -409,14 +399,6 @@ class Utils:
         Args:
             indicator_list (list): List of indicators.
             response_json (dict): JSON response including errors.
-
-        Raises:
-            KeyError: If there is a key error while handling the indicators.
-            InfobloxException: If an Infoblox-specific exception is raised.
-            Exception: If any other general exception occurs.
-
-        Returns:
-            None
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
@@ -476,16 +458,7 @@ class Utils:
             raise InfobloxException()
 
     def auth_sentinel(self):
-        """Authenticate with microsoft sentinel.
-
-        This will return bearer token
-
-        Args:
-            None
-
-        Returns:
-            string: access token.
-        """
+        """Authenticate with microsoft sentinel and update header."""
         __method_name = inspect.currentframe().f_code.co_name
         try:
             for i in range(consts.MAX_RETRIES):
@@ -895,26 +868,15 @@ class Utils:
     def authenticate_infoblox_api(self):
         """Authenticate the Infoblox API."""
         __method_name = inspect.currentframe().f_code.co_name
-        try:
-            self.headers.update({"Authorization": "Token {}".format(consts.API_TOKEN)})
-            applogger.debug(
-                self.log_format.format(
-                    consts.LOGS_STARTS_WITH,
-                    __method_name,
-                    self.azure_function_name,
-                    "Headers = {}".format(self.headers),
-                )
+        self.headers.update({"Authorization": "Token {}".format(consts.API_TOKEN)})
+        applogger.debug(
+            self.log_format.format(
+                consts.LOGS_STARTS_WITH,
+                __method_name,
+                self.azure_function_name,
+                "Headers = {}".format(self.headers),
             )
-        except Exception as err:
-            applogger.error(
-                self.log_format.format(
-                    consts.LOGS_STARTS_WITH,
-                    __method_name,
-                    self.azure_function_name,
-                    "Unexpected error : Error-{}".format(err),
-                )
-            )
-            raise InfobloxException()
+        )
 
     def add_xh_to_iso_time_string(self, date_time, x):
         """Add x hours to a given ISO formatted date and time string.
@@ -925,10 +887,6 @@ class Utils:
 
         Returns:
             str: The new date and time string after adding x hours in the format "%Y-%m-%d %H:%M:%S.%f".
-
-        Raises:
-            InfobloxException: When an Infoblox related exception occurs.
-            Exception: When any other exception occurs.
         """
         __method_name = inspect.currentframe().f_code.co_name
         try:
