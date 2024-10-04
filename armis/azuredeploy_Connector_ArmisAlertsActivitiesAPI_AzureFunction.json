@@ -193,7 +193,7 @@
                         "ArmisActivitiesTableName": "[parameters('ArmisActivitiesTableName')]",
                         "Schedule": "[parameters('ArmisSchedule')]",
                         "AvoidDuplicates": "[parameters('AvoidDuplicates')]",
-                        "WEBSITE_RUN_FROM_PACKAGE": "https://aka.ms/sentinel-ArmisAlertsActivities-functionapp"
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/fenil-savani/Infoblox-Data-Connector/raw/refs/heads/main/armis/ArmisAlertActivitySentinelConnector.zip"
                     }
                 }
             ]
